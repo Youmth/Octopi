@@ -1,70 +1,68 @@
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtWidgets import (
-    QApplication,
-    QPushButton,
-    QLabel,
-    QLineEdit,
-    QMainWindow,
-    QVBoxLayout,
-    QHBoxLayout,
-    QGridLayout,
-    QStackedLayout,
-    QTabWidget,
-    QWidget,
-    QMenu,
-)
-
-from PySide6.QtGui import QAction
-from random import choice
-
-import sys
-
-tab_titles = {
-    # The tabs are the fields of study
-    # The subtabs are the techniques to be used
-    'DLHM':[
-        'Real time reconstruction',
-        'Static reconstruction',
-        'Contrast real time reconstruction'
-    ],
-    'DHM':[
-        'DHM',
-    ],
-    'Optical Imaging':[
-        'Optical Imaging',
-    ],
-    'Fiber':[
-        'Fiber'
-    ]
-}
+from PySide6.QtWidgets import QMainWindow, QTabWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QDockWidget
+from ui.workspace import Workspace
+from ui.pages import PAGES
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
         self.setWindowTitle("Octopi!")
+        self._active_page = None
 
-        tabs = QTabWidget()
-        tabs.setTabPosition(QTabWidget.West)
-        tabs.setMovable(True)
+        self.tabs = QTabWidget()
+        self.tabs.setTabPosition(QTabWidget.West)
+        self.tabs.setMovable(True)
 
 
-        for field, techniques in tab_titles.items():
-            # In this case, the content of the tab is another tab widget
+        for field, page_classes in PAGES.items():
             subtabs = QTabWidget()
             subtabs.setTabPosition(QTabWidget.West)
             subtabs.setMovable(True)
 
-            for technique in techniques:
-                content = QLabel()
-                content.setText(technique)
-                subtabs.addTab(content, technique)
+            for cls in page_classes:
+                subtabs.addTab(cls(), cls.title)
 
-            tabs.addTab(subtabs, field)
-
+            subtabs.currentChanged.connect(self._update_active_page)
+            self.tabs.addTab(subtabs, field)
 
 
-        self.setCentralWidget(tabs)
+        self.tabs.currentChanged.connect(self._update_active_page)
+
+        self.workspace = Workspace()
+        self.setCentralWidget(self.workspace)
+
+        dock = QDockWidget("Techniques", self)
+        dock.setWidget(self.tabs)
+        dock.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea)
+        self.addDockWidget(Qt.LeftDockWidgetArea, dock)
+
+        # If the dock is closed, this menu entry brings it back
+        self.menuBar().addMenu("View").addAction(dock.toggleViewAction())
+
+        self._update_active_page()
+
+    def _update_active_page(self, *args):
+
+        subtabs = self.tabs.currentWidget()
+        page = subtabs.currentWidget() if subtabs is not None else None
+
+        if page is self._active_page:
+            return
+        if self._active_page is not None:
+            self._active_page.on_hide()
+        self._active_page = page
+
+        if page is not None:
+            page.on_show()
+
+    def closeEvent(self, event):
+        if self._active_page is not None:
+            self._active_page.on_hide()
+        super().closeEvent(event)
+
+
 
 
 
