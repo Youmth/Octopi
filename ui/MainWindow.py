@@ -1,6 +1,5 @@
-from PySide6.QtWidgets import QMainWindow, QTabWidget
+from PySide6.QtWidgets import QMainWindow, QTabWidget, QDockWidget
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDockWidget
 from ui.workspace import Workspace
 from ui.pages import PAGES
 
@@ -15,6 +14,8 @@ class MainWindow(QMainWindow):
         self.tabs.setTabPosition(QTabWidget.West)
         self.tabs.setMovable(True)
 
+        self.workspace = Workspace()
+        self.setCentralWidget(self.workspace)
 
         for field, page_classes in PAGES.items():
             subtabs = QTabWidget()
@@ -22,7 +23,9 @@ class MainWindow(QMainWindow):
             subtabs.setMovable(True)
 
             for cls in page_classes:
-                subtabs.addTab(cls(), cls.title)
+                page = cls()
+                page.image_ready.connect(self.workspace.show_image)
+                subtabs.addTab(page, cls.title)
 
             subtabs.currentChanged.connect(self._update_active_page)
             self.tabs.addTab(subtabs, field)
@@ -30,8 +33,6 @@ class MainWindow(QMainWindow):
 
         self.tabs.currentChanged.connect(self._update_active_page)
 
-        self.workspace = Workspace()
-        self.setCentralWidget(self.workspace)
 
         dock = QDockWidget("Techniques", self)
         dock.setWidget(self.tabs)

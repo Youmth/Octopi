@@ -1,4 +1,4 @@
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QPushButton,
@@ -16,6 +16,11 @@ from PySide6.QtWidgets import (
 class Page(QWidget):
     """Base class for every technique page."""
     title = "Untitled"
+
+    # (name, 2D array): ask the workspace to display an image.
+    # Same name again -> the image is updated in place.
+    image_ready = Signal(str, object)
+
 
     def on_show(self):
         """Called when the page becomes visible: start timers here."""
