@@ -32,7 +32,6 @@ def reconstruct(input_dict):
     sq = input_dict['squared']
     ph = input_dict['phase']
 
-    recon = np.zeros((2, 2), np.complex64)
     if sq:
         arr = normalize(np.abs(recon) ** 2, 255)
     elif not sq and ph:

@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QGraphicsScene,
     QGraphicsView,
 )
+from ui.pages import GLUE_GAP
 
 HINT = (
     "Open a hologram from the Static reconstruction tab\n\n"
@@ -33,11 +34,13 @@ def array_to_pixmap(array: np.ndarray) -> QPixmap:
 class ImageItem(QGraphicsPixmapItem):
     """An image on the canvas: movable, rotatable and scalable around its center."""
 
-    def __init__(self, pixmap: QPixmap):
+    def __init__(self, pixmap: QPixmap, glued: bool = False):
         super().__init__()
-        self.setFlags(
-            QGraphicsPixmapItem.ItemIsMovable | QGraphicsPixmapItem.ItemIsSelectable
-        )
+        self._glued = glued
+        if not glued:
+            self.setFlags(
+                QGraphicsPixmapItem.ItemIsMovable | QGraphicsPixmapItem.ItemIsSelectable
+            )
         self.set_pixmap(pixmap)
 
     def set_pixmap(self, pixmap: QPixmap):
@@ -45,6 +48,11 @@ class ImageItem(QGraphicsPixmapItem):
         # Rotation and scale act around the center of the image
         self.setTransformOriginPoint(self.boundingRect().center())
 
+    def update_origin(self):
+        """Rotate/scale around the center of the image plus its glued children"""
+        if not self._glued:
+            rect = self.boundingRect().united(self.childrenBoundingRect())
+            self.setTransformOriginPoint(rect.center())
     def reset_transform(self):
         self.setRotation(0)
         self.setScale(1)
@@ -81,6 +89,7 @@ class Workspace(QGraphicsView):
         item = self._items.get(name)
         if item is not None:
             item.set_pixmap(pixmap)
+            self._layout_glued(item)  # new line
             return
 
         if self._hint is not None:
@@ -93,10 +102,42 @@ class Workspace(QGraphicsView):
         self._items[name] = item
         self.fit_to(item)
 
+    def show_reconstruction(self, name: str, array: np.ndarray, parent: str = "hologram"):
+        """Show an array glued to the right edge of the `parent` image.
+        Same name -> update in place. Does nothing if the parent is not shown."""
+        anchor = self._items.get(parent)
+        if anchor is None:
+            return
+        pixmap = array_to_pixmap(array)
+        item = self._items.get(name)
+        if item is not None:
+            item.set_pixmap(pixmap)
+            self._layout_glued(anchor)
+            return
+
+        item = ImageItem(pixmap, glued=True)
+        item.setParentItem(anchor)
+        item.setPos(QPointF(pixmap.width(), 0))
+        self._items[name] = item
+        self._layout_glued(anchor)
+        self.fit_to()  # first time: make the whole pair visible
+
     def fit_to(self, item=None):
         target = item if item is not None else self.scene().itemsBoundingRect()
         self.fitInView(target, Qt.KeepAspectRatio)
 
+    def _layout_glued(self, anchor: "ImageItem"):
+        """place every glued child against the right edge of its parent"""
+        for child in anchor.childItems():
+            child.setPos(anchor.pixmap().width() + GLUE_GAP, 0)
+        anchor.update_origin()
+
+    def _top_item_at(self, pos):
+        """Item under `pos`, resolved to its top-level parent (the pair, not the half)."""
+        item = self.itemAt(pos)
+        while item is not None and item.parentItem() is not None:
+            item = item.parentItem()
+        return item
     # ---- Mouse interaction ------------------------------------------
     def wheelEvent(self, event):
         delta = event.angleDelta().y() or event.angleDelta().x()  # Shift may swap axes
@@ -104,8 +145,7 @@ class Workspace(QGraphicsView):
             return
         steps = delta / 120.0
         mods = event.modifiers()
-        item = self.itemAt(event.position().toPoint())
-
+        item = self._top_item_at(event.position().toPoint())
         if mods & Qt.ControlModifier:
             if item is not None:
                 item.setScale(max(0.01, item.scale() * 1.1**steps))

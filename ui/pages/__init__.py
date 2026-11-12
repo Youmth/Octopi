@@ -12,3 +12,5 @@ PAGES = {
     "Optical Imaging": [OpticalImagingPage],
     "Fiber": [FiberPage],
 }
+
+GLUE_GAP = 10
