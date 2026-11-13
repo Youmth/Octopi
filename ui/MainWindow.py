@@ -9,6 +9,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Octopi!")
         self._active_page = None
+        self._active_docks = []
 
         self.tabs = QTabWidget()
         self.tabs.setTabPosition(QTabWidget.West)
@@ -45,7 +46,7 @@ class MainWindow(QMainWindow):
                 subtabs.addTab(page, cls.title)
 
                 for dock in page.panels:
-                    self.splitDockWidget(self.techniques_dock, dock, Qt.Vertical)
+                    self.addDockWidget(Qt.RightDockWidgetArea, dock)
                     dock.hide()
                     view_menu.addAction(dock.toggleViewAction())
 

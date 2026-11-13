@@ -39,7 +39,9 @@ class Page(QWidget):
 
     def on_hide(self):
         """Called when the page is hidden: stop timers, free GPU work."""
-        self._panels_to_restore = [d for d in self.panels if not d.isHidden]
+        self._panels_to_restore = [d for d in self.panels if not d.isHidden()]
+        for dock in self.panels:
+            dock.hide()
 
     def add_panel(self, title:str, widget: QWidget) -> QDockWidget:
         """Wrap 'widget' in a movvable dock that belongs to this page.

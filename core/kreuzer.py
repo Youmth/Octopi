@@ -110,18 +110,24 @@ def prepairholoF(CH_m, xop, yop, Xp, Yp):
     x2y1 = x2frac * y1frac
     x2y2 = x2frac * y2frac
 
-    # Initialize complex result matrix
-    CHp_m = np.zeros((n_rows, n_cols), dtype=complex)
+    # Bilinear splat of every source pixel onto its 4 target neighbours,
+    # accumulated into ONE array of the same shape as the hologram (no resizing).
+    # Same arithmetic as the old double loop (which skipped the last row/column
+    # of the source), without the Python loop: bincount does the accumulation.
+    src = CH_m[:-1, :-1]
+    iy = iYcoord[:-1, :-1]
+    ix = iXcoord[:-1, :-1]
+    size = n_rows * n_cols
 
-    # Apply bilinear interpolation
-    for it in range(n_rows - 1):
-        for jt in range(n_cols - 1):
-            CHp_m[iYcoord[it, jt], iXcoord[it, jt]] += (x1y1[it, jt]) * CH_m[it, jt]
-            CHp_m[iYcoord[it, jt], iXcoord[it, jt] + 1] += (x2y1[it, jt]) * CH_m[it, jt]
-            CHp_m[iYcoord[it, jt] + 1, iXcoord[it, jt]] += (x1y2[it, jt]) * CH_m[it, jt]
-            CHp_m[iYcoord[it, jt] + 1, iXcoord[it, jt] + 1] += (x2y2[it, jt]) * CH_m[it, jt]
+    real = np.zeros(size)
+    imag = np.zeros(size)
+    for dy, dx_, weight in ((0, 0, x1y1), (0, 1, x2y1), (1, 0, x1y2), (1, 1, x2y2)):
+        target = ((iy + dy) * n_cols + (ix + dx_)).ravel()
+        values = (weight[:-1, :-1] * src).ravel()
+        real += np.bincount(target, weights=values.real, minlength=size)
+        imag += np.bincount(target, weights=values.imag, minlength=size)
 
-    return CHp_m
+    return (real + 1j * imag).reshape(n_rows, n_cols)
 
 
 def kreuzer3F(hologram, z, L, wavelength, dx, deltaX, FC):
@@ -134,11 +140,12 @@ def kreuzer3F(hologram, z, L, wavelength, dx, deltaX, FC):
     L (float): Length parameter
     wavelength (float): Wavelength
     dx, deltaX (float): Pixel sizes at different stages
-    FC (2D array): Cosine filter
+    FC (2D array): Cosine filter (accepted for compatibility, not used)
 
     Returns:
-    K (2D array): Reconstructed hologram
+    K (2D array): Reconstructed hologram, same shape as `hologram`
     """
+    hologram = hologram*-1
     n_rows, n_cols = hologram.shape
     k = 2 * np.pi / wavelength
     W = dx * n_cols
@@ -160,7 +167,7 @@ def kreuzer3F(hologram, z, L, wavelength, dx, deltaX, FC):
     Xp = (dx * (X - n_cols / 2) * L) / np.sqrt(
         L ** 2 + (dx ** 2) * (X - n_cols / 2) ** 2 + (dx ** 2) * (Y - n_rows / 2) ** 2)
     Yp = (dx * (Y - n_rows / 2) * L) / np.sqrt(
-        L ** 2 + (dx ** 2) * (Y - n_rows / 2) ** 2 + (dx ** 2) * (Y - n_rows / 2) ** 2)
+        L ** 2 + (dx ** 2) * (X - n_rows / 2) ** 2 + (dx ** 2) * (Y - n_rows / 2) ** 2)
 
     CHp_m = prepairholoF(hologram, xop, yop, Xp, Yp)
 
@@ -168,23 +175,12 @@ def kreuzer3F(hologram, z, L, wavelength, dx, deltaX, FC):
     r = np.sqrt((deltaY ** (2)) * (deltaX ** (2)) * ((X - n_cols / 2) ** 2 + (Y - n_rows / 2) ** 2) + z ** 2)
     CHp_m *= ((L / Rp) ** 4) * np.exp(-0.5j * k * (r ** 2 - 2 * z * L) * Rp / (L ** 2))
 
-    pad = n_cols // 2
-
-    # Redimensionar FC si no coincide
-    if FC.shape != CHp_m.shape:
-        FC = np.pad(FC, ((pad, pad), (pad, pad)), mode='constant')
-
     T1 = CHp_m * np.exp((1j * k / (2 * L)) * (
                 2 * Xo * X * deltaxp + 2 * Yo * Y * deltayp + (X ** 2) * deltaxp * deltaX + (
                     Y ** 2) * deltayp * deltaY))
 
-    # Asegurarse de que la matriz T1 también se redimensione correctamente
-    if T1.shape != FC.shape:
-        T1 = np.pad(T1, ((pad, pad), (pad, pad)), mode='constant')
-
     K = propagate(T1, (L - z), wavelength, deltaX, deltaY)
-    K = K[pad:pad + n_rows, pad:pad + n_rows]
     K = np.abs(K) ** 2
-    K = normalize(K)
+    K = normalize(K, 1)
 
     return K

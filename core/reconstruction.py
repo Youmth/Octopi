@@ -29,12 +29,22 @@ def reconstruct(input_dict):
         deltaX = Z * dxy / L
         recon = kreuzer3F(field, Z, L, input_dict['wavelength'], dxy, deltaX, FC)
 
+    elif input_dict['algorithm'] == 'MJ':
+        from core.dlhm import dlhm  # imported here so the app starts without opencv
+
+        dxy = input_dict['dxy']
+        recon = dlhm(field, dxy, input_dict['Z'], input_dict['L'],
+                     input_dict['sensor_width'], dxy, input_dict['wavelength'])
+
+    else:
+        raise ValueError(f"Unknown algorithm: {input_dict['algorithm']!r}")
+
     sq = input_dict['squared']
     ph = input_dict['phase']
 
     if sq:
         arr = normalize(np.abs(recon) ** 2, 255)
-    elif not sq and ph:
+    elif ph:
         arr = normalize(np.angle(recon), 255)
     else:
         arr = normalize(np.abs(recon), 255)
@@ -52,6 +62,6 @@ def reconstruct(input_dict):
 
     end_time = time.time()
     elapsed_time = end_time - init_time
-    fps = round(1 / elapsed_time, 1) if elapsed_time != 0 else 0
+    fps = round(1 / elapsed_time, 5) if elapsed_time != 0 else 0
 
     return arr, fps
