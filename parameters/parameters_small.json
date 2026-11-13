@@ -1,0 +1,22 @@
+{
+  "kind": "parameters",
+  "unit_system": "SI (lengths in meters)",
+  "values": {
+    "r": 0.0238014,
+    "Z": 0.0068,
+    "L": 0.054955,
+    "wavelength": 5.32e-07,
+    "dxy": 6.9e-06,
+    "scale_factor": 10.0,
+    "sensor_width": 0.00555
+  },
+  "readable": {
+    "r": "23801.4 µm",
+    "Z": "6800 µm",
+    "L": "54955 µm",
+    "wavelength": "0.532 µm",
+    "dxy": "6.9 µm",
+    "scale_factor": "10",
+    "sensor_width": "5550 µm"
+  }
+}

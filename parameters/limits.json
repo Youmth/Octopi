@@ -1,0 +1,20 @@
+{
+  "kind": "limits",
+  "unit_system": "SI (lengths in meters)",
+  "values": {
+    "r_min": 0.05,
+    "r_max": 0.06,
+    "Z_min": 0.0,
+    "Z_max": 0.05,
+    "L_min": 0.001,
+    "L_max": 0.1
+  },
+  "readable": {
+    "r_min": "50 mm",
+    "r_max": "60 mm",
+    "Z_min": "0 mm",
+    "Z_max": "50 mm",
+    "L_min": "1 mm",
+    "L_max": "100 mm"
+  }
+}
