@@ -418,3 +418,8 @@ class LimitsPanel(ValuePanel):
             other = key[:-4] + "_min"
             if si_value < self.values[other]:
                 self._set_value(other, si_value)
+
+
+class FiltersPanel(ValuePanel):
+    """Display filters (high-pass, low-pass, contrast, brightness)."""
+    kind = "filters"

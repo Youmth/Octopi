@@ -5,13 +5,21 @@ from core.propagation import normalize, propagate
 from core.kreuzer import filtcosenoF, kreuzer3F
 import time
 
+from core.postprocess import apply_filters, scale_array
+
 
 def reconstruct(input_dict):
     init_time = time.time()
 
-    field = np.sqrt(normalize(input_dict['image'], 1))
+    image = input_dict['image']
+    reference = input_dict.get('reference')
+    if reference is not None:
+        # Sample-free hologram: removes background and twin-image artifacts
+        if reference.shape != image.shape:
+            raise ValueError(f"Reference is {reference.shape[::-1]} px but the hologram is {image.shape[::-1]} px")
+        image = image.astype(np.float64) - reference
 
-    FC = filtcosenoF(DEFAULT_COSINE_PERIOD, np.array((field.shape[1], field.shape[0])))
+    field = np.sqrt(normalize(image, 1))
 
     if input_dict['algorithm'] == 'AS':
         recon = propagate(field,
@@ -27,13 +35,14 @@ def reconstruct(input_dict):
         dxy = input_dict['dxy']
 
         deltaX = Z * dxy / L
+        FC = filtcosenoF(DEFAULT_COSINE_PERIOD, np.array((field.shape[1], field.shape[0])))
         recon = kreuzer3F(field, Z, L, input_dict['wavelength'], dxy, deltaX, FC)
 
     elif input_dict['algorithm'] == 'MJ':
         from core.dlhm import dlhm  # imported here so the app starts without opencv
 
         dxy = input_dict['dxy']
-        recon = dlhm(field, dxy, input_dict['Z'], input_dict['L'],
+        recon = dlhm(field, dxy, input_dict['L'], input_dict['Z'],
                      input_dict['sensor_width'], dxy, input_dict['wavelength'])
 
     else:
@@ -48,6 +57,9 @@ def reconstruct(input_dict):
         arr = normalize(np.angle(recon), 255)
     else:
         arr = normalize(np.abs(recon), 255)
+
+    arr = scale_array(arr, input_dict.get('scale', 'linear'))
+    arr = apply_filters(arr, input_dict)  # no-op unless a filter is active
 
     # if input_dict['filters']:
     #     filter_functions = input_dict['filters'][0]

@@ -25,6 +25,7 @@ class Page(QWidget):
     # Same name again -> the image is updated in place.
     image_ready = Signal(str, object)
     reconstruction_ready = Signal(str, object)
+    remove_image = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -42,6 +43,9 @@ class Page(QWidget):
         self._panels_to_restore = [d for d in self.panels if not d.isHidden()]
         for dock in self.panels:
             dock.hide()
+
+    def on_image_removed(self, name: str):
+        """The user deleted an image from the workspace."""
 
     def add_panel(self, title:str, widget: QWidget) -> QDockWidget:
         """Wrap 'widget' in a movvable dock that belongs to this page.
